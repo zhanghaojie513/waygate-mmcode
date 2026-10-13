@@ -33,7 +33,7 @@
     "dev": "node --experimental-strip-types src/index.ts"
   },
   "dependencies": {
-    "@waygate/core": "file:../waygate-core"
+    "@waygate/core": "github:zhanghaojie513/waygate-core"
   },
   "devDependencies": {
     "@types/node": "^22.10.0",
