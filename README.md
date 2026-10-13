@@ -110,10 +110,7 @@ ANTHROPIC_API_KEY=sk-mmcode-…
 
 暴露的端点：`POST /v1/chat/completions` · `POST /v1/messages` · `GET /v1/models` · `GET /healthz`
 
-> [!NOTE]
-> **当前仅支持流式响应**（SSE）。上游恒走流式、代理原样透传；如果你在 OpenAI SDK 里传
-> `stream: false`，收到的仍是 SSE 格式而非单个 JSON。绝大多数客户端（Cursor / Claude Code /
-> Cherry Studio）默认走流式，不受影响。非流式响应支持在后续版本考虑。
+支持流式（SSE）与非流式（`stream: false` 时自动聚合为单个 JSON）两种响应模式。
 
 ## 工作原理
 
