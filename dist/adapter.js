@@ -79,8 +79,10 @@ export function createMmcodeAdapter(opts = {}) {
         },
         async doctorChecks() {
             const checks = [];
+            /* [复核修正] 此前 .catch(()=>null) 吞掉了所有网络错误 → 「上游连通」恒报 ✓。
+               fetch 只在网络不可达（DNS/超时/拒连）时抛错；HTTP 404/502 不抛（反而证明可达）。 */
             try {
-                await fetch(`${baseUrl}/mavis/api/v1/llm/v1/models`, { signal: AbortSignal.timeout(8000) }).catch(() => null);
+                await fetch(`${baseUrl}/mavis/api/v1/llm/v1/models`, { signal: AbortSignal.timeout(8000) });
                 checks.push({ name: '上游连通', ok: true, detail: `${baseUrl} 可达` });
             }
             catch (err) {
