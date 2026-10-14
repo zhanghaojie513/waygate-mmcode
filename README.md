@@ -34,7 +34,7 @@ Cursor、Claude Code、Cherry Studio、任何能改 base_url 的工具，都能�
 
 ```bash
 # 全局安装
-npm i -g github:zhanghaojie513/waygate-mmcode
+npm i -g git+https://github.com/zhanghaojie513/waygate-mmcode.git
 
 # 导入客户端登录态（在 MiniMax Code 客户端里登录专用账号后执行）
 mmcode login
