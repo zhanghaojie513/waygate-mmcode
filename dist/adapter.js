@@ -11,6 +11,7 @@ import { commandDir, } from '@waygate/core';
 import { join } from 'node:path';
 import { MinimaxTokenManager, clientAuthFile, credentialPath, readClientCredential, readSavedCredential, saveCredential, } from './credential.js';
 import { CredentialError, UpstreamError } from './errors.js';
+import { MinimaxActivity, renderCheckin, renderCredits } from './activity.js';
 import { anthropicToOpenAiSse } from './protocol/stream-decode.js';
 import { toAnthropicRequest } from './protocol/translate.js';
 export const DEFAULT_MMCODE_BASE_URL = 'https://agent.minimax.cn';
@@ -34,12 +35,34 @@ export function createMmcodeAdapter(opts = {}) {
     const baseUrl = (opts.baseUrl ?? DEFAULT_MMCODE_BASE_URL).replace(/\/+$/, '');
     const chatPath = opts.chatPath ?? DEFAULT_MMCODE_CHAT_PATH;
     const tokens = new MinimaxTokenManager((line) => process.stdout.write(`[mmcode] ${line}\n`));
+    const activity = new MinimaxActivity(() => tokens.accessToken());
     return {
         command: 'mmcode',
         displayName: 'MiniMax Code',
         defaultPort: 8788,
         upstreamLabel: `${baseUrl}  (Anthropic 兼容)`,
         // 注意：MiniMax 无需登录态就能列模型 —— 用内置清单（上游无清单端点）。
+        /** [专属子命令] MiniMax 的签到与积分 —— 用本工具维护的令牌代签，无需开客户端。 */
+        extraCommands: [
+            {
+                name: 'checkin',
+                summary: '每日签到领积分（用本工具令牌代签，无需开客户端）',
+                usage: 'checkin',
+                async run({ json }) {
+                    const r = await activity.checkin();
+                    return json ? JSON.stringify(r, null, 2) : renderCheckin(r);
+                },
+            },
+            {
+                name: 'credits',
+                summary: '查询积分账本（剩余/已消耗/累计，精确到 0.01）',
+                usage: 'credits',
+                async run({ json }) {
+                    const l = await activity.credits();
+                    return json ? JSON.stringify(l, null, 2) : renderCredits(l);
+                },
+            },
+        ],
         async credentialStatus() {
             const saved = readSavedCredential();
             if (saved) {

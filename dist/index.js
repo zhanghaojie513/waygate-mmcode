@@ -9,6 +9,6 @@
  */
 import { runCli } from '@waygate/core';
 import { createMmcodeAdapter } from './adapter.js';
-const VERSION = '0.1.0';
+const VERSION = '0.2.0';
 const code = await runCli(createMmcodeAdapter(), { version: VERSION });
 process.exit(code);
