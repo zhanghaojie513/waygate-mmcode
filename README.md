@@ -6,8 +6,9 @@
 
 把 MiniMax Code 客户端的订阅，变成你自己的本地 API
 
+[![npm](https://img.shields.io/npm/v/waygate-mmcode?style=flat-square&color=CB3837&logo=npm&logoColor=white)](https://www.npmjs.com/package/waygate-mmcode)
 ![Node](https://img.shields.io/badge/Node-%E2%89%A520-3C873A?style=flat-square&logo=node.js&logoColor=white)
-![Platform](https://img.shields.io/badge/Platform-Windows-0078D4?style=flat-square&logo=windows&logoColor=white)
+![Platform](https://img.shields.io/badge/Platform-Windows%20%7C%20macOS%20%7C%20Linux-0078D4?style=flat-square)
 ![License](https://img.shields.io/badge/License-MIT-blue?style=flat-square)
 
 [快速开始](#快速开始) · [凭证互斥](#凭证互斥必读) · [客户端配置](#客户端怎么填) · [工作原理](#工作原理) · [常见问题](#常见问题) · [相关项目](#相关项目)
@@ -44,7 +45,7 @@ mmcode
 ```
 
 ```
-途关 · MiniMax Code 反代 v0.2.2
+途关 · MiniMax Code 反代 v0.2.4
 
 凭证    ✓ access 有效约 187 分钟（下次请求自动刷新）
 上游    https://agent.minimax.cn  (Anthropic 兼容)
