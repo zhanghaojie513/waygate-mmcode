@@ -44,7 +44,7 @@ mmcode
 ```
 
 ```
-途关 · MiniMax Code 反代 v0.1.0
+途关 · MiniMax Code 反代 v0.2.0
 
 凭证    ✓ access 有效约 187 分钟（下次请求自动刷新）
 上游    https://agent.minimax.cn  (Anthropic 兼容)
