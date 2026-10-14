@@ -10,7 +10,7 @@ import { ReadableStream } from 'node:stream/web';
 import { describe, expect, it } from 'vitest';
 import { toAnthropicRequest } from './translate.js';
 import { anthropicToOpenAiSse } from './stream-decode.js';
-import type { ChatRequestBody } from '@waygate/core';
+import type { ChatRequestBody } from 'waygate-core';
 
 /** 跑一个 TransformStream：喂字节，收字节，按行解析成对象数组（[DONE] 保留为字符串）。 */
 async function runStream(frames: string[]): Promise<Array<string | Record<string, unknown>>> {

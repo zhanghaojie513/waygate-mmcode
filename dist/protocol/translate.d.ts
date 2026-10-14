@@ -13,7 +13,7 @@
  *   · 连续同角色消息合并（Anthropic 要求 user/assistant 交替，OpenAI 不要求）；
  *   · 未识别字段静默忽略 —— 与两个入站方向的口径一致。
  */
-import type { ChatRequestBody } from '@waygate/core';
+import type { ChatRequestBody } from 'waygate-core';
 /** Anthropic Messages 请求体（出站最小集）。 */
 export interface AnthropicOutRequest {
     model: string;

@@ -6,7 +6,7 @@
  *   · 协议：上游是 **Anthropic 兼容**（`/mavis/api/v1/llm/v1/messages`），不是自研签名；
  *   · ⚠️ 有**凭证互斥**问题（见 README），必须给用户明确告警。
  */
-import { type Adapter, type ModelEntry } from '@waygate/core';
+import { type Adapter, type ModelEntry } from 'waygate-core';
 export declare const DEFAULT_MMCODE_BASE_URL = "https://agent.minimax.cn";
 export declare const DEFAULT_MMCODE_CHAT_PATH = "/mavis/api/v1/llm/v1/messages";
 /**

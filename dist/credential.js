@@ -18,7 +18,7 @@
 import { chmodSync, existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { join } from 'node:path';
-import { commandDir } from '@waygate/core';
+import { commandDir } from 'waygate-core';
 import { CredentialError, UpstreamError } from './errors.js';
 const MINIMAX_TOKEN_ENDPOINT = 'https://account.minimax.cn/oauth2/token';
 /** 提前刷新余量：过期前 120s 内的 token 视为不可用（时钟偏差 + 请求耗时）。 */

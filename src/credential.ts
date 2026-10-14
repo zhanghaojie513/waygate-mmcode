@@ -19,7 +19,7 @@
 import { chmodSync, existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { join } from 'node:path';
-import { commandDir } from '@waygate/core';
+import { commandDir } from 'waygate-core';
 import { CredentialError, UpstreamError } from './errors.js';
 
 const MINIMAX_TOKEN_ENDPOINT = 'https://account.minimax.cn/oauth2/token';

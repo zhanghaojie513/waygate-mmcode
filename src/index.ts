@@ -8,7 +8,7 @@
  * 建议给本工具配专用账号。详见 README。
  */
 
-import { runCli } from '@waygate/core';
+import { runCli } from 'waygate-core';
 import { createMmcodeAdapter } from './adapter.js';
 
 const VERSION = '0.2.0';

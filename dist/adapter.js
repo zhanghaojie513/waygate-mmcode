@@ -7,7 +7,7 @@
  *   · ⚠️ 有**凭证互斥**问题（见 README），必须给用户明确告警。
  */
 import { chmodSync, writeFileSync } from 'node:fs';
-import { commandDir, } from '@waygate/core';
+import { commandDir, } from 'waygate-core';
 import { join } from 'node:path';
 import { MinimaxTokenManager, clientAuthFile, credentialPath, readClientCredential, readSavedCredential, saveCredential, } from './credential.js';
 import { CredentialError, UpstreamError } from './errors.js';

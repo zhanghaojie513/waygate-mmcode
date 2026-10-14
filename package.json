@@ -1,6 +1,6 @@
 {
   "name": "waygate-mmcode",
-  "version": "0.2.0",
+  "version": "0.2.2",
   "description": "MiniMax Code 本地反代：读取本机客户端登录态，提供 Anthropic/OpenAI 兼容的本地聊天端点",
   "type": "module",
   "license": "MIT",
@@ -34,12 +34,15 @@
     "typecheck": "tsc -p tsconfig.test.json",
     "dev": "node --experimental-strip-types src/index.ts"
   },
-  "dependencies": {
-    "@waygate/core": "git+https://github.com/zhanghaojie513/waygate-core.git"
-  },
   "devDependencies": {
     "@types/node": "^22.10.0",
     "typescript": "^5.7.2",
     "vitest": "^2.1.9"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "dependencies": {
+    "waygate-core": "^0.2.2"
   }
 }

@@ -15,7 +15,7 @@ import {
   type CredentialStatus,
   type ModelEntry,
   type UpstreamCallResult,
-} from '@waygate/core';
+} from 'waygate-core';
 import { join } from 'node:path';
 import {
   MinimaxTokenManager,

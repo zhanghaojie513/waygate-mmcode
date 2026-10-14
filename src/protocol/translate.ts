@@ -14,7 +14,7 @@
  *   · 未识别字段静默忽略 —— 与两个入站方向的口径一致。
  */
 
-import type { ChatMessage, ChatRequestBody } from '@waygate/core';
+import type { ChatMessage, ChatRequestBody } from 'waygate-core';
 
 /** Anthropic Messages 请求体（出站最小集）。 */
 export interface AnthropicOutRequest {

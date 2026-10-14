@@ -34,7 +34,7 @@ Cursor、Claude Code、Cherry Studio、任何能改 base_url 的工具，都能�
 
 ```bash
 # 全局安装
-npm i -g git+https://github.com/zhanghaojie513/waygate-mmcode.git
+npm i -g waygate-mmcode
 
 # 导入客户端登录态（在 MiniMax Code 客户端里登录专用账号后执行）
 mmcode login
@@ -44,12 +44,13 @@ mmcode
 ```
 
 ```
-途关 · MiniMax Code 反代 v0.2.0
+途关 · MiniMax Code 反代 v0.2.2
 
 凭证    ✓ access 有效约 187 分钟（下次请求自动刷新）
 上游    https://agent.minimax.cn  (Anthropic 兼容)
-代理    http://127.0.0.1:8788
-密钥    sk-mmcode-3f8a…c21d
+代理    http://127.0.0.1:8788/v1   （OpenAI 系客户端：Cursor / Cherry Studio / OpenAI SDK）
+        http://127.0.0.1:8788      （Anthropic 系客户端：Claude Code，它自己会补 /v1）
+密钥    sk-mmcode-1a2b3c4d5e6f7a8b9c0d1e2f3a4b5c6d
 
 模型 ID（填进你的客户端）：
   MiniMax-M3
@@ -61,7 +62,6 @@ mmcode
 按 Ctrl+C 停止。
 ```
 
-> 仓库已包含构建产物（`dist/`），从 GitHub 安装**无需本地构建**、无需 npm 账号。
 
 **要求**：Node.js ≥ 20；本机装有 MiniMax Code 桌面客户端**且已登录**（建议专用账号）。
 
@@ -190,7 +190,7 @@ flowchart LR
 ## 相关项目
 
 - **[waygate-qoder](https://github.com/zhanghaojie513/waygate-qoder)** —— 同款工具，对应 Qoder CN（无凭证互斥问题）
-- **[waygate-core](https://github.com/zhanghaojie513/waygate-core)** —— 两个工具共用的骨架
+- **[waygate-core](https://github.com/zhanghaojie513/waygate-core)** —— 两个工具共用的骨架（`npm i waygate-core`）
 - **[relay-station](https://github.com/zhanghaojie513/relay-station)** —— 同一作者的完整多提供商反代（含控制台、用量统计）
 
 ## License

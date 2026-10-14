@@ -7,7 +7,7 @@
  * ⚠️ 凭证互斥：MiniMax 同一账号只能有一个有效会话 —— 本工具与官方客户端同账号会互相踢下线。
  * 建议给本工具配专用账号。详见 README。
  */
-import { runCli } from '@waygate/core';
+import { runCli } from 'waygate-core';
 import { createMmcodeAdapter } from './adapter.js';
 const VERSION = '0.2.0';
 const code = await runCli(createMmcodeAdapter(), { version: VERSION });
