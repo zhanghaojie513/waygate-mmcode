@@ -1,6 +1,6 @@
 {
   "name": "waygate-mmcode",
-  "version": "0.2.2",
+  "version": "0.2.3",
   "description": "MiniMax Code 本地反代：读取本机客户端登录态，提供 Anthropic/OpenAI 兼容的本地聊天端点",
   "type": "module",
   "license": "MIT",
@@ -43,6 +43,6 @@
     "access": "public"
   },
   "dependencies": {
-    "waygate-core": "^0.2.2"
+    "waygate-core": "^0.2.3"
   }
 }
