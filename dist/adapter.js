@@ -1,15 +1,14 @@
 /**
- * MiniMax Code 适配器：把「本机客户端登录态」变成「本地 Anthropic/OpenAI 兼容反代」。
+ * MiniMax Code 适配器：把「官方 OAuth 设备授权登录取到的凭证」变成「本地 Anthropic/OpenAI 兼容反代」。
  *
- * 与 waygate-qoder 同构（同一个 core 骨架），差异只有三处：
- *   · 凭证：读客户端**明文** auth.json（无需解密，比 Qoder 简单）；
+ * 与 waygate-qoder / waygate-workbuddy 同构（同一个 core 骨架），差异在于：
+ *   · 凭证：走 **官方 OAuth 设备授权**（`mmcode login`），**不读本机客户端、不解密**；
+ *     这样服务器（无反代目标机的桌面客户端）也能自助登录，无需人工注入 token；
  *   · 协议：上游是 **Anthropic 兼容**（`/mavis/api/v1/llm/v1/messages`），不是自研签名；
  *   · ⚠️ 有**凭证互斥**问题（见 README），必须给用户明确告警。
  */
-import { chmodSync, writeFileSync } from 'node:fs';
-import { commandDir, } from 'waygate-core';
-import { join } from 'node:path';
-import { MinimaxTokenManager, clientAuthFile, credentialPath, readClientCredential, readSavedCredential, saveCredential, } from './credential.js';
+import {} from 'waygate-core';
+import { LOGIN_WAIT_MS, MinimaxTokenManager, PendingLoginError, credentialPath, credentialSummary, pollDeviceLogin, readSavedCredential, startDeviceLogin, } from './credential.js';
 import { CredentialError, UpstreamError } from './errors.js';
 import { MinimaxActivity, renderCheckin, renderCredits } from './activity.js';
 import { anthropicToOpenAiSse } from './protocol/stream-decode.js';
@@ -27,9 +26,29 @@ export const MINIMAX_MODELS = [
     { id: 'MiniMax-M2.7', displayName: 'MiniMax M2.7' },
     { id: 'MiniMax-M2.7-highspeed', displayName: 'MiniMax M2.7 Highspeed' },
 ];
-/** 追加一条 OAuth 行（`~/.waygate/mmcode/oauth.json`），让 token 刷新可独立记录过期时间。 */
-export function statePath() {
-    return join(commandDir('mmcode'), 'oauth.json');
+/**
+ * 轮询进度行 —— 用 `\r` 覆盖同一行，不刷屏。
+ *
+ * 没有它，用户面对的是最长 2 分钟的**完全静默**（实测），分不清"在等"还是"卡死了"。
+ */
+function tickTo(out) {
+    return ({ waitedMs, remainingMs }) => {
+        const w = Math.round(waitedMs / 1000);
+        const r = Math.round(remainingMs / 1000);
+        out.write(`\r  ⏳ 等待授权中… ${w}s（最多再等 ${r}s，按 Ctrl+C 可中断）   `);
+    };
+}
+/**
+ * 登录成功后必讲的互斥告警 —— 设备授权**不解除**它。
+ *
+ * 走 OAuth 只是让「服务器上自助登录」成为可能，MiniMax 的
+ * 「同一账号同时只有一个有效会话」规则没有变：这个账号一旦在别处登过
+ * （桌面客户端或官方 `mcode` CLI），本工具手里的 refresh token 立刻作废。
+ */
+function mutualExclusionNotice() {
+    return ('\n⚠️  凭证互斥（必读）：MiniMax 同一账号只能有一个有效会话。\n' +
+        '    请给本工具用**专用账号**，并且**永不用它登桌面客户端或官方 mcode CLI** ——\n' +
+        '    只要在别处登录一次，这里的凭证就会被顶掉（表现为 401，需重跑 mmcode login）。\n');
 }
 export function createMmcodeAdapter(opts = {}) {
     const baseUrl = (opts.baseUrl ?? DEFAULT_MMCODE_BASE_URL).replace(/\/+$/, '');
@@ -42,8 +61,26 @@ export function createMmcodeAdapter(opts = {}) {
         defaultPort: 8788,
         upstreamLabel: `${baseUrl}  (Anthropic 兼容)`,
         // 注意：MiniMax 无需登录态就能列模型 —— 用内置清单（上游无清单端点）。
+        loginHint: '登录（官方 OAuth 设备授权；按提示在浏览器完成授权）',
         /** [专属子命令] MiniMax 的签到与积分 —— 用本工具维护的令牌代签，无需开客户端。 */
         extraCommands: [
+            {
+                name: 'login-poll',
+                summary: `完成登录：轮询取票（浏览器授权后执行；\`login\` 等待超时也用这条）`,
+                usage: 'login-poll',
+                async run() {
+                    try {
+                        const cred = await pollDeviceLogin(LOGIN_WAIT_MS, tickTo(process.stdout));
+                        return '✓ 登录成功 → ' + credentialPath() + '\n' + credentialSummary() + '\n' + mutualExclusionNotice();
+                    }
+                    catch (err) {
+                        if (err instanceof PendingLoginError) {
+                            return '⏳ 还没看到你的授权完成 —— 请先在浏览器里打开链接完成授权，然后重跑：mmcode login-poll';
+                        }
+                        throw err;
+                    }
+                },
+            },
             {
                 name: 'checkin',
                 summary: '每日签到领积分（用本工具令牌代签，无需开客户端）',
@@ -65,36 +102,41 @@ export function createMmcodeAdapter(opts = {}) {
         ],
         async credentialStatus() {
             const saved = readSavedCredential();
-            if (saved) {
-                const left = saved.expiresAt ? Math.round((saved.expiresAt - Date.now()) / 60000) : null;
-                const state = left !== null && left > 0 ? `access 有效约 ${left} 分钟` : 'access 可能已过期（下次请求会自动刷新）';
-                return { ok: true, detail: `${state}${saved.account ? `（账号 ${saved.account}）` : ''}`, source: credentialPath() };
+            if (!saved) {
+                return { ok: false, detail: '未登录 —— 跑 `mmcode login`（浏览器授权一次）', source: credentialPath() };
             }
+            const left = saved.expiresAt ? Math.round((saved.expiresAt - Date.now()) / 60000) : null;
+            const state = left !== null && left > 0 ? `access 有效约 ${left} 分钟` : 'access 可能已过期（下次请求会自动刷新）';
+            return { ok: true, detail: `${state}${saved.account ? `（账号 ${saved.account}…）` : ''}`, source: credentialPath() };
+        },
+        /**
+         * 登录 = 官方 OAuth 设备授权（`mmcode login`）。
+         *
+         * **原地等 2 分钟**：打印授权链接后就地轮询，用户在浏览器点完授权、终端**自动**继续，
+         * 不用像 WorkBuddy 那样手动回来再跑一次。
+         * 超时（或用户没在 2 分钟内完成）→ 抛 `PendingLoginError`，此时**保留 state**并提示
+         * 改用 `mmcode login-poll` 续跑（设备码本身有效期 5 分钟）。
+         */
+        async login() {
+            const state = await startDeviceLogin();
+            const out = process.stdout;
+            out.write('请用浏览器打开下面的链接完成授权（用你的 MiniMax 账号）：\n\n' +
+                `  ${state.verificationUriComplete}\n\n` +
+                `  短码：${state.userCode}（链接已含，直接打开即可）\n\n` +
+                `授权完成后本终端会**自动继续**（最多等 ${Math.round(LOGIN_WAIT_MS / 1000)} 秒）。\n`);
             try {
-                const c = readClientCredential();
-                return { ok: true, detail: `已从客户端读取登录态${c.account ? `（${c.account}）` : ''} —— 建议跑一次 mmcode login 落盘`, source: clientAuthFile() };
+                const cred = await pollDeviceLogin(LOGIN_WAIT_MS, tickTo(out));
+                out.write('\n✓ 登录成功 → ' + credentialPath() + '\n' + credentialSummary() + '\n' + mutualExclusionNotice());
             }
             catch (err) {
-                return { ok: false, detail: err.message };
+                if (err instanceof PendingLoginError) {
+                    out.write(`\n⏳ 等了 ${Math.round(LOGIN_WAIT_MS / 1000)} 秒还没看到授权完成。\n` +
+                        '   完成浏览器授权后，回来执行：mmcode login-poll\n' +
+                        '   （设备码 5 分钟内有效；超过就得重新跑 mmcode login。）\n');
+                    throw err;
+                }
+                throw err;
             }
-        },
-        async login() {
-            const cred = readClientCredential();
-            const path = saveCredential(cred);
-            /* 独立的状态文件：记录过期时刻，便于 doctor 展示（凭证本体在 credential.json）。 */
-            writeFileSync(statePath(), JSON.stringify({ expiresAt: cred.expiresAt, account: cred.account ?? null }, null, 2) + '\n', { mode: 0o600 });
-            try {
-                chmodSync(statePath(), 0o600);
-            }
-            catch {
-                /* Windows 语义有限 */
-            }
-            const left = cred.expiresAt ? Math.round((cred.expiresAt - Date.now()) / 60000) : null;
-            process.stdout.write(`已读取客户端登录态${cred.account ? `（账号 ${cred.account}）` : ''}\n` +
-                `已保存到 ${path}\n` +
-                (left !== null ? `access token 剩余约 ${left} 分钟（到期自动刷新）\n` : '') +
-                `\n⚠️  提醒：MiniMax 同一账号只能有一个有效会话 —— 本工具与官方客户端同时登录同一账号会互相踢下线。\n` +
-                `    建议给本工具配专用账号（与日常使用的客户端分开）。\n`);
         },
         async listModels() {
             /* 上游无清单端点（实测 503）—— 用内置清单，见 MINIMAX_MODELS 注释。 */

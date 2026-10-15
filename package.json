@@ -1,7 +1,7 @@
 {
   "name": "waygate-mmcode",
-  "version": "0.2.4",
-  "description": "MiniMax Code 本地反代：读取本机客户端登录态，提供 Anthropic/OpenAI 兼容的本地聊天端点",
+  "version": "0.3.0",
+  "description": "MiniMax Code 本地反代：官方 OAuth 设备授权登录，提供 Anthropic/OpenAI 兼容的本地聊天端点",
   "keywords": [
     "minimax",
     "minimax-code",
@@ -46,7 +46,7 @@
     "dev": "node --experimental-strip-types src/index.ts"
   },
   "dependencies": {
-    "waygate-core": "^0.2.4"
+    "waygate-core": "^0.2.5"
   },
   "devDependencies": {
     "@types/node": "^22.10.0",
