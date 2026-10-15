@@ -28,7 +28,7 @@
     "node": ">=20"
   },
   "bin": {
-    "mmcode": "./dist/index.js"
+    "mmcode": "dist/index.js"
   },
   "main": "./dist/index.js",
   "files": [
