@@ -60,6 +60,13 @@ export declare class MinimaxActivity {
     private readonly token;
     constructor(token: () => Promise<string>);
     /** 打一次签到接口，返回 data 段。 */
+    /**
+     * 签到接口（status / claim）。
+     *
+     * ★ 走 `fetchWithRetry`：上游存在**间歇性连接超时**，原来"打一次就完"会让用户
+     * 偶发看到 `fetch failed`。重试只针对连接层失败（4xx 不重试，见 core retry.ts 注释）。
+     * 签到上游**自带幂等**（重复领返回已签状态），所以对 claim 这个 POST 重试也是安全的。
+     */
     private callSignin;
     /** 查签到面板（不领取）。 */
     panel(): Promise<SigninPanel>;

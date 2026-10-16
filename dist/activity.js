@@ -15,6 +15,7 @@
  * 账本是**批次级累计**（每笔发放的 授予/剩余/已消耗 + 到期时间）；上游**不回报单次请求消耗**
  * （实测 usage 里无 credit 字段）。所以 `credits` 只给账户级余额，不做单次估算。
  */
+import { describeFetchError, fetchWithRetry } from 'waygate-core';
 import { UpstreamError } from './errors.js';
 const MINIMAX_API = 'https://agent.minimax.cn/minimax-cloud/api/v1';
 /** 签到「今天」的时区边界（与官方客户端一致；缺参数上游报 invalid timezone_id）。 */
@@ -42,19 +43,32 @@ export class MinimaxActivity {
         this.token = token;
     }
     /** 打一次签到接口，返回 data 段。 */
+    /**
+     * 签到接口（status / claim）。
+     *
+     * ★ 走 `fetchWithRetry`：上游存在**间歇性连接超时**，原来"打一次就完"会让用户
+     * 偶发看到 `fetch failed`。重试只针对连接层失败（4xx 不重试，见 core retry.ts 注释）。
+     * 签到上游**自带幂等**（重复领返回已签状态），所以对 claim 这个 POST 重试也是安全的。
+     */
     async callSignin(action) {
         const token = await this.token();
         const url = `${MINIMAX_API}/signin/${action}?timezone_id=${encodeURIComponent(SIGNIN_TZ)}`;
-        const res = await fetch(url, {
-            method: action === 'claim' ? 'POST' : 'GET',
-            headers: {
-                authorization: `Bearer ${token}`,
-                accept: 'application/json',
-                ...(action === 'claim' ? { 'content-type': 'application/json' } : {}),
-            },
-            ...(action === 'claim' ? { body: '{}' } : {}),
-            signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
-        });
+        let res;
+        try {
+            res = await fetchWithRetry(url, {
+                method: action === 'claim' ? 'POST' : 'GET',
+                headers: {
+                    authorization: `Bearer ${token}`,
+                    accept: 'application/json',
+                    ...(action === 'claim' ? { 'content-type': 'application/json' } : {}),
+                },
+                ...(action === 'claim' ? { body: '{}' } : {}),
+            }, { timeoutMs: REQUEST_TIMEOUT_MS });
+        }
+        catch (err) {
+            /* 把 "fetch failed" 变成可行动的文案（带 cause 码）。 */
+            throw new UpstreamError(`连不上 MiniMax 签到接口（${describeFetchError(err)}）—— 网络抖动，请重试`);
+        }
         if (!res.ok)
             throw new UpstreamError(`签到接口 HTTP ${res.status}`);
         const body = (await res.json());
@@ -112,10 +126,13 @@ export class MinimaxActivity {
      */
     async credits() {
         const token = await this.token();
-        const res = await fetch(`${MINIMAX_API}/credit/details`, {
-            headers: { authorization: `Bearer ${token}`, accept: 'application/json' },
-            signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
-        });
+        let res;
+        try {
+            res = await fetchWithRetry(`${MINIMAX_API}/credit/details`, { headers: { authorization: `Bearer ${token}`, accept: 'application/json' } }, { timeoutMs: REQUEST_TIMEOUT_MS });
+        }
+        catch (err) {
+            throw new UpstreamError(`连不上 MiniMax 账本接口（${describeFetchError(err)}）—— 网络抖动，请重试`);
+        }
         if (!res.ok)
             throw new UpstreamError(`账本接口 HTTP ${res.status}`);
         const body = (await res.json());
