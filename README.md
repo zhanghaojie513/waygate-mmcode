@@ -62,7 +62,7 @@ mmcode
 ```
 
 ```
-途关 · MiniMax Code 反代 v0.3.0
+途关 · MiniMax Code 反代 v0.3.1
 
 凭证    ✓ access 有效约 187 分钟（账号 01a0d156…）
 上游    https://agent.minimax.cn  (Anthropic 兼容)
