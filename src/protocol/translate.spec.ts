@@ -137,7 +137,7 @@ describe('toAnthropicRequest', () => {
       ],
     } as unknown as ChatRequestBody);
     expect(out.messages.length).toBe(1);
-    expect(out.messages[0].content).toEqual([
+    expect(out.messages[0]!.content).toEqual([
       { type: 'text', text: '看图' },
       { type: 'image', source: { type: 'base64', media_type: 'image/png', data: 'QUJD' } },
       { type: 'text', text: '只文字' },
@@ -167,10 +167,10 @@ describe('anthropicToOpenAiSse', () => {
     const chunks = out.filter(isChunk);
     expect(chunks.length).toBe(4); // role + 2 content + finish
     expect(out[out.length - 1]).toBe('[DONE]');
-    expect((chunks[0].choices as Array<Record<string, unknown>>)[0].delta).toEqual({ role: 'assistant', content: '' });
-    expect((chunks[1].choices as Array<Record<string, unknown>>)[0].delta).toEqual({ content: '你' });
-    const fin = chunks[3];
-    expect((fin.choices as Array<Record<string, unknown>>)[0].finish_reason).toBe('stop');
+    expect((chunks[0]!.choices as Array<Record<string, unknown>>)[0]!.delta).toEqual({ role: 'assistant', content: '' });
+    expect((chunks[1]!.choices as Array<Record<string, unknown>>)[0]!.delta).toEqual({ content: '你' });
+    const fin = chunks[3]!;
+    expect((fin.choices as Array<Record<string, unknown>>)[0]!.finish_reason).toBe('stop');
     /* usage 口径 [v0.5.10]：prompt = input(10) + cache_creation(0) + cache_read(128) = 138 ——
        Anthropic 的 input_tokens **不含**缓存部分（生产实测 input=43/cache_read=128 即此形态），
        三者相加才是真输入；cached_tokens 只取**读**命中。旧断言 prompt=10 是漏掉缓存的低估值。 */
@@ -208,17 +208,17 @@ describe('anthropicToOpenAiSse', () => {
       MSG_STOP,
     ]);
     const chunks = out.filter(isChunk);
-    expect((chunks[1].choices as Array<Record<string, unknown>>)[0].delta).toEqual({ reasoning_content: '想' });
-    const toolStart = (chunks[2].choices as Array<Record<string, unknown>>)[0].delta as Record<string, unknown>;
+    expect((chunks[1]!.choices as Array<Record<string, unknown>>)[0]!.delta).toEqual({ reasoning_content: '想' });
+    const toolStart = (chunks[2]!.choices as Array<Record<string, unknown>>)[0]!.delta as Record<string, unknown>;
     expect(toolStart.tool_calls).toEqual([
       { index: 0, id: 'tu_9', type: 'function', function: { name: 'run', arguments: '' } },
     ]);
-    const a1 = ((chunks[3].choices as Array<Record<string, unknown>>)[0].delta as Record<string, unknown>).tool_calls as Array<Record<string, unknown>>;
-    const a2 = ((chunks[4].choices as Array<Record<string, unknown>>)[0].delta as Record<string, unknown>).tool_calls as Array<Record<string, unknown>>;
-    expect((a1[0].function as Record<string, string>).arguments).toBe('{"a"');
-    expect((a2[0].function as Record<string, string>).arguments).toBe(':1}');
-    const fin = chunks[5];
-    expect((fin.choices as Array<Record<string, unknown>>)[0].finish_reason).toBe('tool_calls');
+    const a1 = ((chunks[3]!.choices as Array<Record<string, unknown>>)[0]!.delta as Record<string, unknown>).tool_calls as Array<Record<string, unknown>>;
+    const a2 = ((chunks[4]!.choices as Array<Record<string, unknown>>)[0]!.delta as Record<string, unknown>).tool_calls as Array<Record<string, unknown>>;
+    expect((a1[0]!.function as Record<string, string>).arguments).toBe('{"a"');
+    expect((a2[0]!.function as Record<string, string>).arguments).toBe(':1}');
+    const fin = chunks[5]!;
+    expect((fin.choices as Array<Record<string, unknown>>)[0]!.finish_reason).toBe('tool_calls');
   });
 
   it('★ 断流（无 message_stop）不补 [DONE] —— readUpstreamSse 按断流失败处理', async () => {
@@ -233,6 +233,6 @@ describe('anthropicToOpenAiSse', () => {
       MSG_STOP,
     ]);
     const chunks = out.filter(isChunk);
-    expect((chunks[1].choices as Array<Record<string, unknown>>)[0].finish_reason).toBe('length');
+    expect((chunks[1]!.choices as Array<Record<string, unknown>>)[0]!.finish_reason).toBe('length');
   });
 });

@@ -34,9 +34,16 @@ export const DEFAULT_MMCODE_BASE_URL = 'https://agent.minimax.cn';
 export const DEFAULT_MMCODE_CHAT_PATH = '/mavis/api/v1/llm/v1/messages';
 
 /**
- * MiniMax 模型清单：上游**没有**清单端点（实测 `/mavis/api/v1/llm/v1/models` 恒 503），
- * 故用内置清单（与 relay 的种子一致）。这是「目录 = 接口清单」原则的**唯一例外** ——
- * 上游确实不提供，不编造其他来源，只列已知可用的这几个。
+ * MiniMax 内置模型清单 —— **仅作回落**（v0.3.5 起）。
+ *
+ * 此前注释称「上游没有清单端点（实测 /mavis/api/v1/llm/v1/models 恒 503）」，
+ * 那是**测错了路径**：清单端点是 `/mavis/api/v1/models`（不带 `llm/v1` 段，
+ * 与 chat 端点前缀不同）。2026-10-17 实测该端点**无需鉴权**即可返回
+ *   `{version, ttlSeconds, providers:[{providerId:'minimax', config:{models:{...}}}]}`
+ *   —— 当前 4 个模型，与本清单一致。
+ *
+ * 故改为「真拉取 + 本清单回落」：上游新增模型能自动跟上（不必发版），
+ * 拉取失败（离线 / 端点变更）时退回这里，保证 `mmcode models` 永远有输出。
  */
 export const MINIMAX_MODELS: ModelEntry[] = [
   { id: 'MiniMax-M3', displayName: 'MiniMax M3' },
@@ -44,6 +51,51 @@ export const MINIMAX_MODELS: ModelEntry[] = [
   { id: 'MiniMax-M2.7', displayName: 'MiniMax M2.7' },
   { id: 'MiniMax-M2.7-highspeed', displayName: 'MiniMax M2.7 Highspeed' },
 ];
+
+/** 清单端点（相对 baseUrl）。与 chat 端点不同前缀 —— 这是当初测错的地方。 */
+export const MODELS_PATH = '/mavis/api/v1/models';
+
+/** 拉取超时：清单是启动路径上的调用，不能拖慢 `mmcode serve`。 */
+const MODELS_TIMEOUT_MS = 8_000;
+
+/** 上游清单响应（只取我们需要的字段，其余忽略）。 */
+interface MinimaxCatalogResponse {
+  providers?: Array<{
+    providerId?: string;
+    config?: { models?: Record<string, { name?: string }> };
+  }>;
+}
+
+/**
+ * 拉上游真清单。失败 / 结构不符 / 空清单 → 返回 null（调用方回落内置清单）。
+ *
+ * **不带 access token**：实测该端点无需鉴权（带假 token 反而 401 —— 上游若收到
+ * Authorization 会去校验它）。不带即匿名可读，也就不依赖登录态，`mmcode models`
+ * 在未登录时同样可用。
+ */
+export async function pullMinimaxModels(baseUrl: string): Promise<ModelEntry[] | null> {
+  try {
+    const res = await fetch(`${baseUrl.replace(/\/+$/, '')}${MODELS_PATH}`, {
+      headers: { accept: 'application/json' },
+      signal: AbortSignal.timeout(MODELS_TIMEOUT_MS),
+    });
+    if (!res.ok) return null;
+    const body = (await res.json()) as MinimaxCatalogResponse;
+    const models = body.providers?.find((p) => p.providerId === 'minimax')?.config?.models;
+    if (!models || typeof models !== 'object') return null;
+    const entries = Object.entries(models)
+      .filter(([id]) => typeof id === 'string' && id.length > 0)
+      .map(([id, m]) => ({
+        id,
+        /* 上游 name 是短名（如 `M2.7`），补上厂商前缀便于客户端里辨认。 */
+        displayName: typeof m?.name === 'string' && m.name ? `MiniMax ${m.name}` : id,
+      }));
+    return entries.length > 0 ? entries : null;
+  } catch {
+    /* 网络不可达 / 超时 / 坏 JSON —— 一律回落，不向调用方抛（清单不是关键路径）。 */
+    return null;
+  }
+}
 
 /**
  * 轮询进度行 —— 用 `\r` 覆盖同一行，不刷屏。
@@ -84,7 +136,7 @@ export function createMmcodeAdapter(opts: { baseUrl?: string; chatPath?: string 
     displayName: 'MiniMax Code',
     defaultPort: 8788,
     upstreamLabel: `${baseUrl}  (Anthropic 兼容)`,
-    // 注意：MiniMax 无需登录态就能列模型 —— 用内置清单（上游无清单端点）。
+    // 模型清单走公开的 /mavis/api/v1/models（无需登录）；这里说明的是**聊天**所需凭证。
     loginHint: '登录（官方 OAuth 设备授权；按提示在浏览器完成授权）',
 
     /** [专属子命令] MiniMax 的签到与积分 —— 用本工具维护的令牌代签，无需开客户端。 */
@@ -169,8 +221,9 @@ export function createMmcodeAdapter(opts: { baseUrl?: string; chatPath?: string 
     },
 
     async listModels(): Promise<ModelEntry[]> {
-      /* 上游无清单端点（实测 503）—— 用内置清单，见 MINIMAX_MODELS 注释。 */
-      return MINIMAX_MODELS;
+      /* v0.3.5：真拉取 /mavis/api/v1/models（无需鉴权），失败回落内置清单。
+         此前返回硬编码常量 —— 上游新增模型时必须发版才能跟上。 */
+      return (await pullMinimaxModels(baseUrl)) ?? MINIMAX_MODELS;
     },
 
     async doctorChecks() {
@@ -178,7 +231,7 @@ export function createMmcodeAdapter(opts: { baseUrl?: string; chatPath?: string 
       /* [复核修正] 此前 .catch(()=>null) 吞掉了所有网络错误 → 「上游连通」恒报 ✓。
          fetch 只在网络不可达（DNS/超时/拒连）时抛错；HTTP 404/502 不抛（反而证明可达）。 */
       try {
-        await fetch(`${baseUrl}/mavis/api/v1/llm/v1/models`, { signal: AbortSignal.timeout(8000) });
+        await fetch(`${baseUrl}${MODELS_PATH}`, { signal: AbortSignal.timeout(8000) });
         checks.push({ name: '上游连通', ok: true, detail: `${baseUrl} 可达` });
       } catch (err) {
         checks.push({ name: '上游连通', ok: false, detail: (err as Error).message });
