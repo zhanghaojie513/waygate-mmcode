@@ -1,6 +1,6 @@
 {
   "name": "waygate-mmcode",
-  "version": "0.3.6",
+  "version": "0.3.7",
   "description": "MiniMax Code 本地反代：官方 OAuth 设备授权登录，提供 Anthropic/OpenAI 兼容的本地聊天端点",
   "keywords": [
     "minimax",
@@ -51,6 +51,6 @@
     "vitest": "^2.1.9"
   },
   "dependencies": {
-    "waygate-core": "^0.2.9"
+    "waygate-core": "^0.2.10"
   }
 }
